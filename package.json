@@ -1,0 +1,55 @@
+{
+  "name": "@hungvudang/google-chat-mcp",
+  "version": "0.1.0",
+  "description": "Post to Google Chat from any MCP client through incoming webhooks",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "google-chat",
+    "gchat",
+    "webhook",
+    "notifications"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hungvudang/google-chat-mcp.git"
+  },
+  "homepage": "https://github.com/hungvudang/google-chat-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/hungvudang/google-chat-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "google-chat-mcp": "build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "prepublishOnly": "npm test && npm run build"
+  },
+  "dependencies": {
+    "@chat-adapter/gchat": "^4.45.0",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "chat": "^4.45.0",
+    "escape-html": "^1.0.3",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/escape-html": "^1.0.4",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

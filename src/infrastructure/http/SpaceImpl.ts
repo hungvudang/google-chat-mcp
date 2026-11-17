@@ -99,7 +99,7 @@ export class SpaceImpl implements Space {
     } catch (exception) {
       if (signal.aborted) {
         this.#log.warn({ timeoutMs: this.#timeoutMs }, 'space.timeout');
-        throw ChatException.Undelivered.slow(this.#timeoutMs);
+        throw ChatException.Undelivered.slow();
       }
       this.#log.warn({ err: exception }, 'space.unreachable');
       throw ChatException.Undelivered.unreachable();
@@ -130,9 +130,6 @@ export class SpaceImpl implements Space {
     if (REVOKED.has(status)) {
       return ChatException.Undelivered.revoked();
     }
-    if (!google.success) {
-      return ChatException.Undelivered.unexplained();
-    }
-    return ChatException.Undelivered.refused(google.data.error.message);
+    return ChatException.Undelivered.refused();
   }
 }

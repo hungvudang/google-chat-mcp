@@ -3,6 +3,7 @@ import * as z from 'zod';
 import { Report } from '../domain/chat/report.ts';
 import type { Spaces } from '../domain/chat/spaces.ts';
 import { GUIDE_URI } from './guide.ts';
+import type { Guard } from './guard.ts';
 import * as Schemas from './schemas.ts';
 
 const Field = z.object({
@@ -12,7 +13,7 @@ const Field = z.object({
 
 const Link = z.object({
   label: z.string().describe('Button text.'),
-  url: z.string().describe('Web address the button opens.'),
+  url: z.string().describe('Page the button opens.'),
 });
 
 /**
@@ -20,8 +21,9 @@ const Link = z.object({
  *
  * @param server - Server to add the tool to.
  * @param spaces - Spaces the tool can post to.
+ * @param guard - Keeps library errors away from the model.
  */
-export function registerReport(server: McpServer, spaces: Spaces): void {
+export function registerReport(server: McpServer, spaces: Spaces, guard: Guard): void {
   server.registerTool(
     'report',
     {
@@ -39,8 +41,8 @@ export function registerReport(server: McpServer, spaces: Spaces): void {
       outputSchema: Schemas.Delivery,
       annotations: Schemas.POSTING,
     },
-    async ({ space, threadKey, ...content }) => {
-      return Schemas.delivered(await spaces.send(Report.of(content), space, Schemas.threadOf(threadKey)));
-    },
+    guard('report', async ({ space, threadKey, ...content }) => {
+      return Schemas.delivered(await spaces.send(Report.of(content), space, threadKey));
+    }),
   );
 }

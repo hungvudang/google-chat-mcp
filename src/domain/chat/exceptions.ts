@@ -9,7 +9,7 @@
 /**
  * Base of every chat exception. Its message never contains a webhook URL, so it is safe to show.
  */
-abstract class Fault extends Error {
+export abstract class Fault extends Error {
   protected constructor(message: string) {
     super(message);
     this.name = new.target.name;
@@ -36,7 +36,7 @@ export class Invalid extends Fault {
 
   /** A thread key was given but is blank. */
   static emptyThreadKey(): Invalid {
-    return new Invalid('The thread key is empty. Leave it out to post outside a thread.');
+    return new Invalid('The thread name is empty. Leave it out to post outside a thread.');
   }
 
   /** The report has no title. */
@@ -56,7 +56,7 @@ export class Invalid extends Fault {
 
   /** A report link is missing its label or is not a web address. */
   static badLink(): Invalid {
-    return new Invalid('Every link needs a label and a web address starting with https:// or http://.');
+    return new Invalid('Every button needs some text and a link to a web page.');
   }
 
   /** No space was named and there is no default one. */
@@ -76,17 +76,17 @@ export class Invalid extends Fault {
 
   /** No space is configured. */
   static noSpaces(): Invalid {
-    return new Invalid('No Google Chat space is set up. Add at least one webhook.');
+    return new Invalid('No Google Chat space is set up. Add the posting link of at least one space.');
   }
 
-  /** The webhook configured for `space` is not a Google Chat webhook link. */
+  /** The link configured for `space` is not a Google Chat webhook. */
   static notWebhook(space: string): Invalid {
-    return new Invalid(`The ${space} webhook isn't a Google Chat webhook link. Copy it again from the space's webhook settings.`);
+    return new Invalid(`The posting link for ${space} isn't a Google Chat link. Copy it again from the space's Apps & integrations settings.`);
   }
 
   /** The webhook configured for `space` lacks its key or token. */
   static incompleteWebhook(space: string): Invalid {
-    return new Invalid(`The ${space} webhook link is incomplete. Copy the whole link again from the space's webhook settings.`);
+    return new Invalid(`The posting link for ${space} is incomplete. Copy the whole link again from the space's Apps & integrations settings.`);
   }
 }
 
@@ -103,35 +103,30 @@ export class Undelivered extends Fault {
     return new Undelivered('Google Chat is getting too many messages for this space. Wait a moment and try again.');
   }
 
-  /** Google Chat took longer than `timeoutMs` to answer. */
-  static slow(timeoutMs: number): Undelivered {
-    return new Undelivered(`Google Chat took more than ${timeoutMs / 1000} seconds to answer. Try again shortly.`);
+  /** Google Chat did not answer in time, so the post may or may not have arrived. */
+  static slow(): Undelivered {
+    return new Undelivered("Google Chat didn't answer in time. The post may have gone through, so check the space before sending it again.");
   }
 
   /** The network request itself failed. */
   static unreachable(): Undelivered {
-    return new Undelivered("Couldn't reach Google Chat. Check the network connection and try again.");
+    return new Undelivered("Couldn't reach Google Chat. Check the internet connection and try again.");
   }
 
-  /** Google Chat had a problem on its side. */
+  /** Google Chat had a problem on its side, so the post may or may not have arrived. */
   static down(): Undelivered {
-    return new Undelivered('Google Chat is having trouble right now. Try again in a few minutes.');
+    return new Undelivered('Google Chat is having trouble right now. The post may have gone through, so check the space before sending it again.');
   }
 
   /** The webhook was deleted or its token no longer matches. */
   static revoked(): Undelivered {
-    return new Undelivered("This space's webhook no longer works. Ask a space manager for a new webhook link.");
+    return new Undelivered("This space no longer accepts posts from here. Ask a space manager for a new posting link.");
   }
 
-  /** Google Chat refused the request and said why, for example a bad token or a card it cannot show. */
-  static refused(reason: string): Undelivered {
-    return new Undelivered(`Google Chat didn't accept this. It said: ${reason}`);
-  }
-
-  /** Google Chat refused the request without saying why. */
-  static unexplained(): Undelivered {
+  /** Google Chat did not accept the request. */
+  static refused(): Undelivered {
     return new Undelivered(
-      "Google Chat didn't accept this and gave no reason. If it keeps happening, the space's webhook may need replacing.",
+      "Google Chat didn't accept this post. Check the text and links, then try again. If it keeps happening, the space may need a new posting link.",
     );
   }
 }

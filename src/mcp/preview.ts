@@ -4,6 +4,7 @@ import type { Formats } from '../domain/chat/format.ts';
 import { Message } from '../domain/chat/message.ts';
 import * as Schemas from './schemas.ts';
 import { GUIDE_URI } from './guide.ts';
+import type { Guard } from './guard.ts';
 
 const Input = z.object({ text: Schemas.Text, format: Schemas.Format });
 
@@ -14,8 +15,9 @@ const Output = z.object({ text: z.string().describe('The text exactly as send wo
  *
  * @param server - Server to add the tool to.
  * @param formats - Format for each name.
+ * @param guard - Keeps library errors away from the model.
  */
-export function registerPreview(server: McpServer, formats: Formats): void {
+export function registerPreview(server: McpServer, formats: Formats, guard: Guard): void {
   server.registerTool(
     'preview',
     {
@@ -25,9 +27,9 @@ export function registerPreview(server: McpServer, formats: Formats): void {
       outputSchema: Output,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ text, format }) => {
+    guard('preview', async ({ text, format }) => {
       const { text: rendered } = Message.from(formats[format], text);
       return { content: [{ type: 'text', text: rendered }], structuredContent: { text: rendered } };
-    },
+    }),
   );
 }

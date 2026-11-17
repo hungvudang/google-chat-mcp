@@ -4,6 +4,7 @@ import type { Formats } from '../domain/chat/format.ts';
 import { Message } from '../domain/chat/message.ts';
 import type { Spaces } from '../domain/chat/spaces.ts';
 import { GUIDE_URI } from './guide.ts';
+import type { Guard } from './guard.ts';
 import * as Schemas from './schemas.ts';
 
 /**
@@ -12,8 +13,9 @@ import * as Schemas from './schemas.ts';
  * @param server - Server to add the tool to.
  * @param spaces - Spaces the tool can post to.
  * @param formats - Format for each name.
+ * @param guard - Keeps library errors away from the model.
  */
-export function registerSend(server: McpServer, spaces: Spaces, formats: Formats): void {
+export function registerSend(server: McpServer, spaces: Spaces, formats: Formats, guard: Guard): void {
   server.registerTool(
     'send',
     {
@@ -28,8 +30,8 @@ export function registerSend(server: McpServer, spaces: Spaces, formats: Formats
       outputSchema: Schemas.Delivery,
       annotations: Schemas.POSTING,
     },
-    async ({ text, format, space, threadKey }) => {
-      return Schemas.delivered(await spaces.send(Message.from(formats[format], text), space, Schemas.threadOf(threadKey)));
-    },
+    guard('send', async ({ text, format, space, threadKey }) => {
+      return Schemas.delivered(await spaces.send(Message.from(formats[format], text), space, threadKey));
+    }),
   );
 }

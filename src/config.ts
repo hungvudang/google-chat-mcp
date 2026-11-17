@@ -5,7 +5,7 @@ import { blank, presence, startsWith, withoutPrefix } from './shared/strings.ts'
 
 const PREFIX = 'GOOGLE_CHAT_WEBHOOK';
 const LEVELS = Object.keys(pino.levels.values) as [pino.Level, ...pino.Level[]];
-const TIMEOUT_RULE = 'must be a positive whole number of milliseconds';
+const TIMEOUT_RULE = 'must be a whole number above zero, like 10000';
 
 const Env = z
   .object({
@@ -33,7 +33,7 @@ const Env = z
       }
       const name = spaceOf(variable);
       if (blank(name)) {
-        ctx.addIssue({ code: 'custom', message: 'needs a space name after the underscore', path: [variable] });
+        ctx.addIssue({ code: 'custom', message: `needs a space name at the end, like ${PREFIX}_ALERTS`, path: [variable] });
         continue;
       }
       const owner = owners.get(name);
@@ -45,7 +45,7 @@ const Env = z
       webhooks.set(name, value);
     }
     if (webhooks.size === 0 && ctx.issues.length === 0) {
-      ctx.addIssue({ code: 'custom', message: `No webhook is set. Add ${PREFIX} or ${PREFIX}_<NAME>.`, path: [PREFIX] });
+      ctx.addIssue({ code: 'custom', message: `No space is set up. Add ${PREFIX} with the posting link of a space.`, path: [PREFIX] });
     }
     return {
       /** Webhook URL per space name, checked when the spaces are built. */
@@ -61,7 +61,18 @@ const Env = z
  * Settings read from the environment at startup. Only their shape is checked here. Whether a
  * webhook or the default space is valid is decided when the spaces are built.
  */
-export type Config = z.output<typeof Env>;
+export type Settings = z.output<typeof Env>;
+
+/**
+ * Settings the server cannot start with. The message lists every problem and never repeats a
+ * webhook link.
+ */
+export class Invalid extends Error {
+  constructor(issues: string) {
+    super(issues);
+    this.name = new.target.name;
+  }
+}
 
 /**
  * Reads the settings from environment variables. Variables set to an empty string count as
@@ -74,10 +85,15 @@ export type Config = z.output<typeof Env>;
  * - `LOG_LEVEL`: pino level, `info` by default.
  *
  * @param env - Variables to read, usually `process.env`.
- * @returns The settings, or readable issues that never repeat a webhook URL.
+ * @returns The settings.
+ * @throws {@link Invalid} When any setting is missing or malformed.
  */
-export function readConfig(env: NodeJS.ProcessEnv): z.ZodSafeParseResult<Config> {
-  return Env.safeParse(env);
+export function read(env: NodeJS.ProcessEnv): Settings {
+  const parsed = Env.safeParse(env);
+  if (!parsed.success) {
+    throw new Invalid(z.prettifyError(parsed.error));
+  }
+  return parsed.data;
 }
 
 function webhookVariable(variable: string): boolean {

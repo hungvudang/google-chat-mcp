@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
-import { pino } from 'pino';
-import * as z from 'zod';
-import { readConfig } from './config.ts';
+import { pino, type Logger } from 'pino';
+import * as Config from './config.ts';
 import { chat } from './domain/chat/format.ts';
 import type { Space } from './domain/chat/space.ts';
 import { Spaces } from './domain/chat/spaces.ts';
@@ -13,47 +12,26 @@ import { Webhook } from './infrastructure/http/webhook.ts';
 import { createServer } from './mcp/server.ts';
 
 /**
- * stdout carries the MCP messages, so every log line goes to stderr.
+ * Starts the server. Any setting it cannot work with stops it before the first request.
+ *
+ * @param env - Environment variables to read the settings from.
+ * @param log - Logger, which writes to stderr because stdout carries MCP messages.
+ * @throws {@link Config.Invalid} When the settings are malformed.
+ * @throws {@link ChatException.Invalid} When a webhook or the default space is invalid.
  */
-const log = pino(pino.destination(2));
-
-process.on('uncaughtException', (exception) => {
-  log.fatal({ err: exception }, 'server.crashed');
-  process.exit(1);
-});
-
-const config = readConfig(process.env);
-if (!config.success) {
-  log.fatal({ issues: z.prettifyError(config.error) }, 'config.invalid');
-  process.exit(1);
-}
-const { webhooks, defaultSpace, timeoutMs, level } = config.data;
-log.level = level;
-
-const payloads = PayloadImpl.create();
-const configured = new Map<string, Space>();
-const issues: string[] = [];
-for (const [name, url] of webhooks) {
-  try {
-    configured.set(name, SpaceImpl.of(Webhook.parse(url, name), payloads, log, timeoutMs));
-  } catch (exception) {
-    issues.push((exception as Error).message);
+function start(env: NodeJS.ProcessEnv, log: Logger): void {
+  const settings = Config.read(env);
+  log.level = settings.level;
+  const payloads = PayloadImpl.create();
+  const connected = new Map<string, Space>();
+  for (const [name, url] of settings.webhooks) {
+    connected.set(name, SpaceImpl.of(Webhook.parse(url, name), payloads, log, settings.timeoutMs));
   }
-}
-let spaces: Spaces | undefined;
-if (issues.length === 0) {
-  try {
-    spaces = Spaces.of(configured, defaultSpace);
-  } catch (exception) {
-    issues.push((exception as Error).message);
-  }
-}
-if (spaces === undefined) {
-  log.fatal({ issues: issues.join('\n') }, 'config.invalid');
-  process.exit(1);
+  const spaces = Spaces.of(connected, settings.defaultSpace);
+  serveStdio(() => createServer(spaces, { markdown: MarkdownImpl.create(), chat }, log), {
+    onerror: (exception) => log.error({ err: exception }, 'mcp.failure'),
+  });
+  log.info({ spaces: spaces.names, defaultSpace: spaces.default }, 'server.started');
 }
 
-serveStdio(() => createServer(spaces, { markdown: MarkdownImpl.create(), chat }), {
-  onerror: (exception) => log.error({ err: exception }, 'mcp.failure'),
-});
-log.info({ spaces: spaces.names, defaultSpace: spaces.default }, 'server.started');
+start(process.env, pino(pino.destination(2)));

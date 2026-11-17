@@ -1,6 +1,6 @@
 {
   "name": "@hungvudang/google-chat-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Post to Google Chat from any MCP client through incoming webhooks",
   "keywords": [
     "mcp",
